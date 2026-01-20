@@ -1,0 +1,28 @@
+#ifndef _UTILS_H_
+#define _UTILS_H_
+
+// Define datatype for matrix elements
+#if INT8
+typedef int8_t val_dt;
+#define byte_dt 1
+#elif INT16
+typedef int16_t val_dt;
+#define byte_dt 2
+#elif INT32
+typedef int32_t val_dt;
+#define byte_dt 4
+#elif INT64
+typedef int64_t val_dt;
+#define byte_dt 8
+#elif FP32 
+typedef float val_dt;
+#define byte_dt 4
+#elif FP64
+typedef double val_dt;
+#define byte_dt 8
+#else
+typedef float val_dt;
+#define byte_dt 4
+#endif
+
+#endif
