@@ -112,8 +112,7 @@ tar -zxvf upmem-src-2024.2.0-Linux-x86_64.tar.gz # option, when modify sdk
 ```bash
 ./download_dataset.sh
 ```
-After download, datasets are placed under `PageRank/dataset` and `SpMV/dataset`.
-The data for the Regex experiments already exists in `Regex/dataset`.
+After download, datasets are placed under `PageRank/dataset`, `SpMV/dataset`, and `Regex/dataset`.
 Datasets used in the PR experiments is as follows.
 
 | Dataset | Node | Edge | Size (MB) |

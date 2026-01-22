@@ -19,7 +19,6 @@ int make_BUF(int* buffer, char* file_name)
             string str;
             getline(DFA_info, str);
 
-            //마지막 줄이 공백인 경우 처리
             if(str.empty()){
                 continue;
             }

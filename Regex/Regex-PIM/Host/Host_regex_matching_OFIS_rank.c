@@ -73,25 +73,31 @@ double get_time_difference(struct timeval start, struct timeval end)
     return time_difference;
 }
 
-
 void load_target_data(int target_data_size)
 {
+    FILE* fp = fopen("../dataset/Text/text.txt", "rb"); 
+    
+    if(fp == NULL)
+    {
+        printf("merged file open error\n");
+        exit(0);
+    }
+
+    int buffer_size = (1 << 19);
+    int read_size = buffer_size; 
+
     for(int i = 0; i < target_data_size * 2; i++)
     {
-        char test_file_name[100] = {};
-        sprintf(test_file_name, "../dataset/Text/text_%d.txt", i);
-        FILE* fp = fopen(test_file_name, "r");
-        if(fp == NULL)
+        size_t result = fread(target_data[i], 1, read_size, fp);
+
+        if(result == 0 && feof(fp)) 
         {
-            printf("file %d open error\n", i);
-            exit(0);
+            break; 
         }
-
-        fgets(target_data[i], 1 << 19, fp);
-        fclose(fp);
     }
-}
 
+    fclose(fp);
+}
 
 
 void load_DFA_info(int regex_rule_amount)
@@ -242,7 +248,6 @@ void* OFIS_DPU_fct(void* arg)
     OFIS_dpu_launch(rank);
 
     // DPU binary termination check
-    uint8_t finish_ig;
     uint32_t finish_count = 0;
 
     int is_terminated = 0;
@@ -260,7 +265,7 @@ void* OFIS_DPU_fct(void* arg)
         // Set MUX for the CPU (To Read & Write data)
         OFIS_set_mux_rank(rank, OPEN_TO_HOST);
 
-        // Read Interim results from all DPUs in the finish_igs
+        // Read Interim results from all DPUs in the Rank
         DPU_FOREACH(rank, dpu, each_dpu)
         {
             DPU_ASSERT(dpu_prepare_xfer(dpu, result_matched_num[64 * rank_id + each_dpu]));

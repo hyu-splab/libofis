@@ -4,7 +4,7 @@ using namespace std;
 
 #define DEBUG 1
 
-string meta_character_set = "\\^$.|[]()*+?{},"; // 이 문자들은 메타 문자들로 문자 그 자체를 의미할 때는 반드시 \를 앞에 붙여야 한다.
+string meta_character_set = "\\^$.|[]()*+?{},"; // these meta characters must include \ infront
 
 int leaf_node_amount;
 
@@ -108,7 +108,7 @@ int convert_hex_to_dec(char hex)
     else if(hex >= 'A' && hex <= 'Z') return 10 + hex - 'A';
     else
     {
-        wrong_regex("잘못된 16진수 표현(convert_hex_to_dec)");
+        wrong_regex("Wrong hexa expression(convert_hex_to_dec)");
     }
 }
 
@@ -132,7 +132,7 @@ string hex_processing(string regex)
 
             if(hex2dec > 128)
             {
-                wrong_regex("ASCII 범위를 넘어가는 16진수(escape_processing)");
+                wrong_regex("hexa exceeding ASCII range(escape_processing)");
             }
 
             hex_char = (char) hex2dec;
@@ -167,7 +167,6 @@ string square_braket_processing(string regex)
 
     int current_first = 0;
 
-    // [] 안에 든 부분과 그렇지 않은 부분을 분리
     for(int i = 0; i < regex.length(); i++)
     {
         if(regex[i] == '[' && regex[i - 1] != '\\')
@@ -193,7 +192,6 @@ string square_braket_processing(string regex)
     int splited_pat_amount = splited_patterns.size();
 
 
-    // []로 표현된 부분을 () 표현으로 변환
     for(int i = 0; i < splited_pat_amount; i++)
     {
         string current_pattern = splited_patterns[i];
@@ -271,7 +269,6 @@ string square_braket_processing(string regex)
         splited_patterns[i] = converted_pat;
     }
 
-    // 변환 완료된 regex를 반환
     for(int i = 0; i < splited_pat_amount; i++)
     {
         processed_regex += splited_patterns[i];
@@ -292,18 +289,16 @@ string curly_braket_processing(string regex)
         if(regex[i] == '{' && regex[i - 1] != '\\')
         {
 
-            // {}로 감싸진 반복 횟수 추출
             int curly_start_pos = i;
             while(!(regex[i] == '}' && regex[i - 1] != '\\') && i < regex.length())
             {
                 i++;
             }
-            if(i >= regex.length()) wrong_regex("중괄호가 닫히지 않음(curly_barket_processing)");
+            if(i >= regex.length()) wrong_regex("(curly_barket_processing)");
             string range_str = regex.substr(curly_start_pos + 1, i - curly_start_pos - 1);
             // std::cout << "range_str: " << range_str << endl;
             
 
-            // 최대, 최소 반복 횟수 파싱
             int min_cnt = 0;
             int max_cnt = 0;
             int commapos = range_str.find(',');
@@ -313,7 +308,7 @@ string curly_braket_processing(string regex)
             }
             else if(commapos == 0)
             {
-                wrong_regex("잘못된 수량자(curly_barket_processing)");
+                wrong_regex("Wrong count(curly_barket_processing)");
             }
             else if(commapos == range_str.length() - 1)
             {
@@ -328,12 +323,12 @@ string curly_braket_processing(string regex)
 
             if(min_cnt < 0 && max_cnt < -1)
             {
-                wrong_regex("수량자 안에 음수가 들어갈 수 없음(curly_barket_processing)");
+                wrong_regex("Negative number(curly_barket_processing)");
             }
 
             if(max_cnt < min_cnt && max_cnt > 0)
             {
-                wrong_regex("최대 반복 횟수가 최소 반복 횟수보다 작을 수 없음(curly_barket_processing)");
+                wrong_regex("(curly_barket_processing)");
             }
             // std::cout << "min_cnt: " << min_cnt << endl;
             // std::cout << "max_cnt: " << max_cnt << endl;
@@ -343,7 +338,7 @@ string curly_braket_processing(string regex)
             int proc_len = processed_regex.length();
             string iter_target;
 
-            if(!proc_len) wrong_regex("가장 처음에 수량자가 등장할 수 없음(curly_barket_processing)");
+            if(!proc_len) wrong_regex("(curly_barket_processing)");
 
             if(processed_regex[proc_len - 2] == '\\')
             {
@@ -361,7 +356,7 @@ string curly_braket_processing(string regex)
                 {
                     paren_start_pos--;
 
-                    if(paren_start_pos < 0) wrong_regex("괄호가 열리지 않음(curly_barket_processing)");
+                    if(paren_start_pos < 0) wrong_regex("(curly_barket_processing)");
                 }
                 
                 iter_target = processed_regex.substr(paren_start_pos, proc_len - paren_start_pos + 1);
@@ -370,7 +365,6 @@ string curly_braket_processing(string regex)
             std::cout << "iter_target: " << iter_target << endl;
         #endif
 
-            //반복 실행
             for(int j = 1; j < min_cnt; j++)
             {
                 #ifdef DEBUG
@@ -490,7 +484,6 @@ vector<char> escape_processing(string regex)
             }
             else
             {
-                // wrong_regex("잘못된 백슬래쉬 사용(escape_processing)");
 
                 processed_regex.push_back(escape_target);
                 i++;
@@ -1001,19 +994,19 @@ void make_DFA(char* pattern){
         iteration_processed_regex_vec.push_back(iteration_processed_regex[i]);
     }
 
-    // 2. escape processed regex를 augmented regex로 변환 (concate -> ,로 변환)
+    // 2. escape processed regex -> augmented regex
     vector<char> augmented_regex = make_augmented_regex(iteration_processed_regex_vec);
 
-    // 3. augmented regex를 postfix 표현으로 변환
+    // 3. augmented regex -> postfix 
     vector<char> postfix_regex = make_postfix_regex(augmented_regex);
 
-    // 4. postfix regex를 토대로 expression tree build
+    // 4. build expression tree base on postfix regex
     Node* expression_tree = make_expression_tree(postfix_regex);
 
-    // 5. tree를 순회하며 leaf node일 경우 번호와 문자를 저장
+    // 5. traversal tree
     vector<pair<int, char> > leaf_node_info = get_leaf_node_info(expression_tree);
 
-    // 6. leaf node에 포함된 문자만 순서대로 저장
+    // 6. save in leaf node order
     vector<char> leaf_node_letters = get_leaf_node_letters(leaf_node_info);
 
 #ifdef DEBUG
@@ -1055,10 +1048,10 @@ void make_DFA(char* pattern){
     // 10. transition table build
     leaf_node_letters.insert(leaf_node_letters.begin(), '$');
 
-    vector <vector<int> > state_set(1); // state는 1번부터 시작, o번 state는 trap state
+    vector <vector<int> > state_set(1); // state from 1, o-th state: trap state
     vector <vector<int> > transition_table(1, vector <int>(char_set.length() - 1, 0));
 
-    state_set.push_back(expression_tree->firstpos); // 첫 state는 루트 노드의 first_pos
+    state_set.push_back(expression_tree->firstpos); // first state: rood node's first_pos
 
 #ifdef DEBUG
     cout << "root first_pos" << endl;
@@ -1078,8 +1071,6 @@ void make_DFA(char* pattern){
 #ifdef DEBUG
         cout << "state_num: " << state_num << endl;
 #endif
-        // char_set에 있는 문자를 순회
-        // current_state에 존재하는 리프 노드 번호에 해당하는 문자가 current char이거나 .이면 다음 state 벡터 에 해당 리프 노드의 follow pos 저장
         for(int char_index = 0; char_index < char_set.size() - 1; char_index++)
         {        
             char char_in_char_set = char_set[char_index];
@@ -1158,13 +1149,13 @@ void make_DFA(char* pattern){
     }
 #endif
 
-    // 12. DPU로 전송할 데이터 가공
+    // 12. data preprocessing (for DPU transfer)
     state_num = transition_table.size() - 1;
     char_set_size = char_set.length() - 1;
 
     if(char_set_size * state_num > 32 * 1024)
     {
-        std::cout << "DFA의 크기가 너무 큽니다.\n" << endl;
+        std::cout << "DFA size is too big.\n" << endl;
         return;
     }
 
@@ -1188,7 +1179,6 @@ void make_DFA(char* pattern){
         }
     }
 
-    //DFA 배열에 옮겨담기
     DFA = (int**) malloc((state_num + 1) * sizeof(int*));
     for(int i = 0; i <= state_num; i++)
     {

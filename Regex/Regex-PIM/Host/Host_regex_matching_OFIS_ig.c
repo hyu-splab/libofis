@@ -76,20 +76,28 @@ double get_time_difference(struct timeval start, struct timeval end)
 
 void load_target_data(int target_data_size)
 {
+    FILE* fp = fopen("../dataset/Text/text.txt", "rb"); 
+    
+    if(fp == NULL)
+    {
+        printf("merged file open error\n");
+        exit(0);
+    }
+
+    int buffer_size = (1 << 19);
+    int read_size = buffer_size; 
+
     for(int i = 0; i < target_data_size * 2; i++)
     {
-        char test_file_name[100] = {};
-        sprintf(test_file_name, "../dataset/Text/text_%d.txt", i);
-        FILE* fp = fopen(test_file_name, "r");
-        if(fp == NULL)
-        {
-            printf("file %d open error\n", i);
-            exit(0);
-        }
+        size_t result = fread(target_data[i], 1, read_size, fp);
 
-        fgets(target_data[i], 1 << 19, fp);
-        fclose(fp);
+        if(result == 0 && feof(fp)) 
+        {
+            break; 
+        }
     }
+
+    fclose(fp);
 }
 
 

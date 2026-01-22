@@ -1,6 +1,3 @@
-// static index
-// atomic
-
 #define _GNU_SOURCE
 #include "make_DFA.h"
 #include <numa.h>
@@ -10,11 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
-// #define LOCAL_IMT // index mapping table을 thread local로 저장
-// #define ONE_CPU // cpu를 하나만 사용
-// #define NAME_THREAD // thread에 이름 지정 (아직 구현x)
-// #define DEBUG // print
 
 #define MAX_THREADS 64
 
@@ -32,6 +24,7 @@ int DFA_info[58000000 / 8];
 int DFA_info_size[295];
 
 char target_data[2048][1 << 19];
+
 int end_flag;
 
 int state_amount;
@@ -47,7 +40,7 @@ pthread_barrier_t data_sync_point;
 pthread_barrier_t work_sync_point;
 
 int **result = NULL;
-atomic_int result_index; // 결과를 저장할 위치
+atomic_int result_index;
 long int global_result_index;
 
 double get_time_difference(struct timeval start, struct timeval end) {
@@ -101,21 +94,24 @@ int DFA_data_setting() {
 }
 
 void data_partitioning_for_check() {
-  for (int i = 0; i < total_data_size * 2; i++) {
-    char test_file_name[100] = {};
-    sprintf(test_file_name, "../dataset/Text/text_%d.txt", i);
-    FILE *fp = fopen(test_file_name, "r");
-    if (fp == NULL) {
-      printf("file open error\n");
-      exit(0);
-    }
-    for (int j = 0; j < (1 << 19); j++) {
-      target_data[i][j] = fgetc(fp);
-    }
-
-    fclose(fp);
+  FILE* fp = fopen("../dataset/Text/text.txt", "r");
+  if(fp == NULL){
+    printf("file open error\n");
+    exit(0);
   }
+
+  int buffer_size = (1 << 19);
+  int read_size = buffer_size;
+  for(int i = 0; i < total_data_size * 2; i++){
+    size_t result = fread(target_data[i], 1, read_size, fp);
+
+    if(result == 0 && feof(fp)){
+      break;
+    }
+  }
+  fclose(fp);
 }
+
 
 int is_acceptable(int state_num) {
   int bitmap_arr_index = (state_num - 1) / 32;
@@ -269,18 +265,6 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
-
-  // if (numa_available() < 0) {
-  //   printf("NUMA not available\n");
-  //   return 1;
-  // }
-
-  // 첫번째 소켓을 선택
-  // int target_node = 0;
-  // struct bitmask *node_mask = numa_allocate_nodemask();
-  // numa_bitmask_setbit(node_mask, target_node);
-  // numa_bind(node_mask);
-  // numa_free_nodemask(node_mask);
 
   FILE *fp = fopen("../results/CPU_baseline.csv", "a");
 

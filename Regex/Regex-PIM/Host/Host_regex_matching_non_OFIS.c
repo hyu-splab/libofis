@@ -54,23 +54,30 @@ int index;
 
 long long int matching_amount_per_DFA[MAX_DFA_NUM];
 
-
-void target_data_load(int target_data_size)
+void load_target_data(int target_data_size)
 {
+    FILE* fp = fopen("../dataset/Text/text.txt", "rb"); 
+    
+    if(fp == NULL)
+    {
+        printf("merged file open error\n");
+        exit(0);
+    }
+
+    int buffer_size = (1 << 19);
+    int read_size = buffer_size; 
+
     for(int i = 0; i < target_data_size * 2; i++)
     {
-        char test_file_name[100] = {};
-        sprintf(test_file_name, "../dataset/Text/text_%d.txt", i);
-        FILE* fp = fopen(test_file_name, "r");
-        if(fp == NULL)
-        {
-            printf("file %d open error\n", i);
-            exit(0);
-        }
+        size_t result = fread(target_data[i], 1, read_size, fp);
 
-        fgets(target_data[i], 1 << 19, fp);
-        fclose(fp);
+        if(result == 0 && feof(fp)) 
+        {
+            break; 
+        }
     }
+
+    fclose(fp);
 }
 
 void matching_start(int dpu_amount, int target_data_size)
@@ -117,7 +124,7 @@ end_timer(&execution_timer, COPY_IN_TIME);
 
 
 
-// Target_data transfer and matching
+    // Target_data transfer and matching
     for(int i = 0; i < MAX_TEXT_NUM; i += (dpu_amount/64))
     {
         // printf("%dth loop\n", i/(dpu_amount/64));
@@ -144,7 +151,7 @@ end_timer(&execution_timer, COPY_IN_TIME);
             DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "MRAM_output_metadata", 0, 8, DPU_XFER_DEFAULT));
 
 
-            // matched 횟수의 최대값 결정
+            // find max #matching
             int matched_max = -1;
             for(int j = 0; j < dpu_amount; j++)
             {
@@ -270,7 +277,7 @@ int main(int argc, char* argv[]){
         DFAs_per_DPU[i] = 1;
     }
 
-    target_data_load(target_data_size);
+    load_target_data(target_data_size);
     
     // result array dynamic allocation
     for(int index_for_malloc = 0; index_for_malloc < MAX_DFA_NUM; index_for_malloc++)

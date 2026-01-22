@@ -23,6 +23,7 @@ PageRank/result
 PageRank/figures
 
 Regex/README.md
+Regex/dataset
 Regex/results
 Regex/CPU_only/*.o
 Regex/figures
