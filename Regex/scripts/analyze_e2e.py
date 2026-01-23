@@ -32,9 +32,10 @@ output_file = f'{output_dir}/combined.txt'
 
 with open(output_file, 'w') as outfile:
     outfile.write("Type\tComputation\n")
+    outfile.write(f"CPU\t{cpu:.4f}\n")
     outfile.write(f"IG\t{ig_unit:.4f}\n")
     outfile.write(f"Rank\t{rank_unit:.4f}\n")
     outfile.write(f"R-PIM\t{regex_pim:.4f}\n")
-    outfile.write(f"CPU\t{cpu:.4f}\n")
+
 
 print(f"Comparison table saved to {output_file}")

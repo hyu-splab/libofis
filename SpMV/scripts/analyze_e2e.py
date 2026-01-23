@@ -13,13 +13,13 @@ for num in numbers:
                         names=['#DPUs', 'exec', 'postprocessing', 'preprocessing', 'e2e'])
     
     data = {
-        'Type': ['OFIS', 'ES', 'EW', 'CPU'],
-        'CPU': [0, 0, 0, file1['exec'].iloc[0]],
-        'DPU': [0, file3['exec'].iloc[0], file2['exec'].iloc[0], 0],
-        'Input': [0, file3['transfer'].iloc[0], file2['transfer'].iloc[0], 0],
-        'Partition': [file4['preprocessing'].iloc[0], file3['preprocessing'].iloc[0], file2['preprocessing'].iloc[0], 0],
-        'Output': [0, file3['retrieve'].iloc[0], file2['retrieve'].iloc[0], 0],
-        'ofis': [file4['exec'].iloc[0], 0, 0, 0] 
+        'Type': ['CPU', 'OFIS', 'ES', 'EW'],
+        'CPU': [file1['exec'].iloc[0], 0, 0, 0],
+        'DPU': [0, 0, file3['exec'].iloc[0], file2['exec'].iloc[0]],
+        'Input': [0, 0, file3['transfer'].iloc[0], file2['transfer'].iloc[0]],
+        'Partition': [0, file4['preprocessing'].iloc[0], file3['preprocessing'].iloc[0], file2['preprocessing'].iloc[0]],
+        'Output': [0, 0, file3['retrieve'].iloc[0], file2['retrieve'].iloc[0]],
+        'ofis': [0, file4['exec'].iloc[0], 0, 0] 
     }
     
     df = pd.DataFrame(data)
