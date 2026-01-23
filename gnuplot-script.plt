@@ -379,17 +379,17 @@ plot "Regex/figures/speedup.txt" u 1:2 w lp lw 3 ps 1.5 t "IG-unit",\
 
 # << Figure 14-1 >>
 reset
-set size 0.5, 0.5
+set size 0.55, 0.5
 set bmargin screen 0.07
 set lmargin 6.5
 set rmargin 1.5
 set xrange [0:*] noreverse writeback
-set yrange [0:43]
+set yrange [0:37]
 set ylabel offset 2,0
 set ylabel "Time (sec)" offset 1,0
 set xtics nomirror font ",18"
 set grid y
-set key at graph 0,0.99 left top horizontal samplen 1 spacing 1.1 font ",17"
+set key at graph -0.05,0.99 left top horizontal samplen 1 spacing 1.1 font ",17"
 set style data histograms
 set style histogram rowstacked gap 10
 set boxwidth 0.85
@@ -401,7 +401,7 @@ plot 'SpMV/figures/combined-600-e2e.txt' u 2:xtic(1) lc rgb "#8DD3C7" t "Computa
 
 # << Figure 14-2 >>
 reset
-set size 0.5, 0.5
+set size 0.55, 0.5
 set bmargin screen 0.07
 set lmargin 6.5
 set rmargin 1.5

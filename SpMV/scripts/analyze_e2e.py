@@ -13,7 +13,7 @@ for num in numbers:
                         names=['#DPUs', 'exec', 'postprocessing', 'preprocessing', 'e2e'])
     
     data = {
-        'Type': ['CPU', 'OFIS', 'ES', 'EW'],
+        'Type': ['CPU', 'OFIS(IG)', 'ES', 'EW'],
         'CPU': [file1['exec'].iloc[0], 0, 0, 0],
         'DPU': [0, 0, file3['exec'].iloc[0], file2['exec'].iloc[0]],
         'Input': [0, 0, file3['transfer'].iloc[0], file2['transfer'].iloc[0]],
