@@ -10,7 +10,6 @@ CFLAGS += -g
 
 # Source files
 SRCS_CPP = make_BUF.cpp
-# SRCS_C = main_single.c main_role.c
 SRCS_C = CPU_baseline.c
 
 # Object files

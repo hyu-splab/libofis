@@ -8,7 +8,8 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define MAX_THREADS 64
+#define MAX_THREADS 128
+#define LOCAL_BUFFER_SIZE 1024
 
 struct timeval start, end;
 
@@ -24,14 +25,10 @@ int DFA_info[58000000 / 8];
 int DFA_info_size[295];
 
 char target_data[2048][1 << 19];
-
 int end_flag;
 
 int state_amount;
 int char_set_size;
-#ifdef LOCAL_IMT
-__thread int tl_index_mapping_table[128];
-#endif
 int index_mapping_table[128];
 int acceptable_states_bitmap[300];
 int *transition_table = NULL;
@@ -43,6 +40,13 @@ int **result = NULL;
 atomic_int result_index;
 long int global_result_index;
 
+typedef struct {
+  int data[LOCAL_BUFFER_SIZE][2];
+  int count;
+} LocalBuffer;
+
+__thread LocalBuffer thread_local_buffer = {0};
+
 double get_time_difference(struct timeval start, struct timeval end) {
   double time_difference = (end.tv_sec - start.tv_sec) + (double)((end.tv_usec - start.tv_usec)) / 1000000;
 
@@ -50,11 +54,7 @@ double get_time_difference(struct timeval start, struct timeval end) {
 }
 
 int find_index(char input) {
-#ifdef LOCAL_IMT
-  return (tl_index_mapping_table[input] != -1) ? tl_index_mapping_table[input] : tl_index_mapping_table[127];
-#else
   return (index_mapping_table[input] != -1) ? index_mapping_table[input] : index_mapping_table[127];
-#endif
 }
 
 int DFA_data_setting() {
@@ -112,7 +112,6 @@ void data_partitioning_for_check() {
   fclose(fp);
 }
 
-
 int is_acceptable(int state_num) {
   int bitmap_arr_index = (state_num - 1) / 32;
   int bit_index = (state_num - 1) % 32;
@@ -123,7 +122,7 @@ int is_acceptable(int state_num) {
 void InitResult() {
   result = (int **)malloc(sizeof(int *) * regex_rule_amount);
   for (int i = 0; i < regex_rule_amount; ++i) {
-    result[i] = (int *)malloc(sizeof(int) * 2147483648 * 2);
+    result[i] = (int *)malloc(sizeof(int) * 2146801216 * 2);
   }
 }
 
@@ -145,9 +144,6 @@ void LoadAllDFA() {
 
 int matching(int partition_num, int start_index, int start_state) {
   int current_state = start_state;
-  char input;
-  int bitmap_arr_index;
-  int bit_index;
 
   for (int i = start_index; i < (1 << 19); i++) {
 
@@ -158,28 +154,25 @@ int matching(int partition_num, int start_index, int start_state) {
     if (current_state == 0) {
       return 0;
     }
-
-    bitmap_arr_index = (current_state - 1) >> 5;
-    bit_index = (current_state - 1) & 31;
-
-    if (acceptable_states_bitmap[bitmap_arr_index] & (1 << bit_index)) {
+    if (is_acceptable(current_state)) {
       return i;
     }
-
-    input = target_data[partition_num][i];
-    int idx =
-#ifdef LOCAL_IMT
-        (tl_index_mapping_table[input] != -1) ? tl_index_mapping_table[input] : tl_index_mapping_table[127];
-#else
-        (index_mapping_table[input] != -1) ? index_mapping_table[input] : index_mapping_table[127];
-#endif
+    int idx = find_index(target_data[partition_num][i]);
     if (idx == -1)
-      current_state = 0;
-    else
-      current_state = transition_table[(current_state - 1) * char_set_size + idx];
+      return 0;
+
+    current_state = transition_table[(current_state - 1) * char_set_size + idx];
   }
 
   return -current_state;
+}
+
+void flush_local_buffer() {
+  if (thread_local_buffer.count > 0) {
+    int local_idx = atomic_fetch_add(&result_index, thread_local_buffer.count * 2);
+    memcpy(&result[current_dfa_idx][local_idx], thread_local_buffer.data, thread_local_buffer.count * 2 * sizeof(int));
+    thread_local_buffer.count = 0;
+  }
 }
 
 void *worker_thread(void *arg) {
@@ -187,20 +180,9 @@ void *worker_thread(void *arg) {
 
   cpu_set_t cpuset;
   CPU_ZERO(&cpuset);
-
-#ifdef ONE_CPU
-  // in pim server,
-  // 0-15, 32-47 ->  0-15
-  // 16-31, 48-63 -> 32-47
-  int cpu_id = (thread_id & 15) | ((thread_id & 16) << 1);
-  CPU_SET(cpu_id, &cpuset);
-#else
   CPU_SET(thread_id, &cpuset);
-#endif
-
   pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
-  int local_result_index;
   while (1) {
     if (thread_id == 0) {
       global_result_index += atomic_load(&result_index);
@@ -211,28 +193,31 @@ void *worker_thread(void *arg) {
     if (end_flag)
       break;
 
-#ifdef LOCAL_IMT
-    memcpy(tl_index_mapping_table, index_mapping_table, sizeof(tl_index_mapping_table));
-#endif
-
     for (int idx = thread_id; idx < total_data_size * (1 << 20); idx += nr_thread) {
-      int test_num = idx / (1 << 19);
-      int test_offset = idx % (1 << 19);
+      int partition_num = idx / (1 << 19);
+      int start_index = idx % (1 << 19);
 
-      int matching_result = matching(test_num, test_offset, 1);
+      int matching_result = matching(partition_num, start_index, 1);
       if (matching_result > 0) {
-        local_result_index = atomic_fetch_add(&result_index, 2);
-        result[current_dfa_idx][local_result_index] = idx;
-        result[current_dfa_idx][local_result_index + 1] = idx + (matching_result - test_offset);
+        if (thread_local_buffer.count >= LOCAL_BUFFER_SIZE) {
+          flush_local_buffer();
+        }
+        thread_local_buffer.data[thread_local_buffer.count][0] = idx;
+        thread_local_buffer.data[thread_local_buffer.count][1] = idx + (matching_result - start_index);
+        thread_local_buffer.count++;
       }
+    }
+
+    if (thread_local_buffer.count > 0) {
+      flush_local_buffer();
     }
 
     pthread_barrier_wait(&work_sync_point);
 
-    // if (thread_id == 0) {
-    //   printf("iter %d/%d, nr_result: %d\n", current_dfa_idx, regex_rule_amount, result_index);
-    //   current_dfa_idx++;
-    // }
+    if (thread_id == 0) {
+      // printf("iter %d/%d, nr_result: %d\n", current_dfa_idx, regex_rule_amount, result_index);
+      current_dfa_idx++;
+    }
   }
 
   return NULL;
@@ -266,6 +251,18 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (numa_available() < 0) {
+    printf("NUMA not available\n");
+    return 1;
+  }
+
+  // 첫번째 소켓을 선택
+  int target_node = 0;
+  struct bitmask *node_mask = numa_allocate_nodemask();
+  numa_bitmask_setbit(node_mask, target_node);
+  numa_set_membind(node_mask);
+  numa_free_nodemask(node_mask);
+
   FILE *fp = fopen("../results/CPU_baseline.csv", "a");
 
   InitResult();
@@ -296,7 +293,6 @@ int main(int argc, char *argv[]) {
 
   fprintf(fp, "%d, %d, %d, %ld, %lf\n", total_data_size, regex_rule_amount, nr_thread, global_result_index,
           get_time_difference(start, end));
-
   fclose(fp);
 
   for (int i = 0; i < regex_rule_amount; ++i) {
