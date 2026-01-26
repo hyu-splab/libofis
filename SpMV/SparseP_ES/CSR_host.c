@@ -129,14 +129,12 @@ int main(int argc, char** argv){
 
     // if use BA data
     char path[50] = "../dataset/";
-    char type[50] = ".txt";
 
     char type_result[50] = "_8.csv";
     char filename[256];
     char result_filename[256];
     strcpy(result_filename, argv[3]);
     strcat(path, argv[3]);
-    strcat(path, type);
     strcat(result_filename, type_result);
     strcpy(filename, path);
 
@@ -146,33 +144,20 @@ int main(int argc, char** argv){
 
     Timer timer;
 
-    uint32_t file_type = atoi(argv[4]); // 0: normal, 1: e2e
     struct CSR_2D_format* csr_m;
 
     uint32_t nr_horiz_part = vert_param;
     uint32_t nr_vert_part = vert_param;
 
-    // Case 1: normal Matrix File-----------------------------------------------------------
-    if(file_type == 1){
-        // Load Sparse Matrix in DCSR format
-        struct COO_format* coo_m = get_COO_matrix_rev(filename);
-        int scale_fac;
-        csr_m = convert_to_CSR(coo_m);
+    csr_m = load_csr(filename);
 
-        init_timer(&timer, 15);
-        start_timer(&timer, 15);
-        partition_CSR_ES(csr_m, nr_horiz_part, nr_vert_part);
-        end_timer(&timer, 15);
+    init_timer(&timer, 15);
+    start_timer(&timer, 15);
+    partition_CSR_ES(csr_m, nr_horiz_part, nr_vert_part);
+    end_timer(&timer, 15);
 
-        free_COO(coo_m);
-        printf("Partition time: %.6f s\n", timer.time[15]);
-    }
-    // --------------------------------------------------------------------------------------
-    // Case 2: DCSR File for fast test----------------------------------------------------
-    if(file_type == 0){
-        csr_m = load_dcsr_matrix(filename);
-    }
-    // --------------------------------------------------------------------------------------
+    printf("Partition time: %.6f s\n", timer.time[15]);
+
     if(csr_m == NULL){
         printf("data exceed MRAM\n");
         exit(1);
@@ -180,7 +165,6 @@ int main(int argc, char** argv){
     uint32_t scale_factor;
     scale_factor = csr_m->nr_part / nr_dpus;
 
-    // printf("Convert to CSR: %lf\n", timer.time[6]);
     printf("File name: %s\n", filename);
 
     uint32_t rows_pad = csr_m->nr_horiz * csr_m->height;
@@ -386,8 +370,6 @@ int main(int argc, char** argv){
 
 #endif
     end_timer(&timer, 4);
-// DPU_ASSERT(dpu_free(set));
-    printf("dpu(%d, %d):\t %u\n", nr_dpus, nr_vert_part, csr_m->nnz);
 
     val_dt* host_vec = (val_dt*)calloc(rows_pad, sizeof(val_dt));
     init_timer(&timer, 5);
@@ -425,25 +407,38 @@ int main(int argc, char** argv){
     double send_time = timer.time[0] + timer.time[1];
     // FILE* fp2 = fopen(result_filename, "a");
 
-    char output_filename[50];
+    char output_filename[50], output_filename_e2e[50];
     if (nr_horiz_part == 256){
-        if(file_type == 0) strcpy(output_filename, "./results/ES_256.csv");
-        if(file_type == 1) strcpy(output_filename, "./results/ES_256_e2e.csv");
+        strcpy(output_filename, "./results/ES_256.csv");
+        strcpy(output_filename_e2e, "./results/ES_256_e2e.csv");
     }else if (nr_horiz_part == 512){
-        if(file_type == 0) strcpy(output_filename, "./results/ES_512.csv");
-        if(file_type == 1) strcpy(output_filename, "./results/ES_512_e2e.csv");
+        strcpy(output_filename, "./results/ES_512.csv");
+        strcpy(output_filename_e2e, "./results/ES_512_e2e.csv");
     }
-    FILE* fp2 = fopen(output_filename, "a");
 
-    if(fp2 == NULL) exit(1);
+    FILE* fp2 = fopen(output_filename, "a");
+    FILE* fp3 = fopen(output_filename_e2e, "a");
+
+    /* timer info
+    0: load matrix
+    1: load input
+    2: DPU execution
+    3: retrieve
+    4: merge
+    12: alloc & load
+    15: partition time
+    */
+
+    if(fp2 == NULL || fp3 == NULL) exit(1);
     // nr_dpus | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | tot_time
-    if(file_type == 0) fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[0], timer.time[1], timer.time[2], timer.time[3], timer.time[4], tot_time);
-    else{
-        double end_time = timer.time[11] + timer.time[12] + timer.time[15];
-        // nr_dpus | partition_time | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | E2E time
-        fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[15], timer.time[0], timer.time[1], timer.time[2], timer.time[3], timer.time[4], end_time);
-    }
+    fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[0], timer.time[1], timer.time[2], timer.time[3], timer.time[4], tot_time);
+
+    double end_time = timer.time[11] + timer.time[12] + timer.time[15];
+    // nr_dpus | partition_time | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | E2E time
+    fprintf(fp3, "%d, %f, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[15], timer.time[0], timer.time[1], timer.time[2], timer.time[3], timer.time[4], end_time);
+
     fclose(fp2);
+    fclose(fp3);
     
     // Deallocation
     free(input_vec);

@@ -63,7 +63,7 @@ Each application provides multiple implementation versions to compare the OFIS-e
 - Ubuntu 20.04.6 LTS
 - UPMEM SDK ver 2024.2.0 (you can install it from `https://sdk.upmem.com/2024.2.0/01_Install.html`)
     - If there's any problem, download it from sdk/files directory in this repository
-- **>= 250 GB of free disk space** for datasets
+- **>= 100 GB of free disk space** for datasets
 
 ## Files
 - ofis/      # **ofis.h** and **libofis.so**
@@ -123,7 +123,7 @@ Datasets used in the PR experiments is as follows.
 | NLR | 4,163,764 | 12,487,976 | 185 |
 | rgg_n_2_21_s0 | 2,097,153 | 14,487,995 | 207 |
 
-**Note: Ensure >= 250 GB of free disk space before downloading.**
+**Note: Ensure >= 100 GB of free disk space before downloading.**
 
 ## Experiments (How to Run)
 1. SpMV
@@ -163,19 +163,7 @@ cd Regex
 ```
    Runs all experiments and generates plots(eps) under `graphs/`
 
-4. End to End (including Data Partitioning)
-```bash
-./exp_e2e.sh $(num_iter) $(E2E_mode) # e.g. ./exp_e2e.sh 1 1
-```
-   Runs SpMV & Regex experiments that show end-to-end results
-   Raw Results:
-   - `SpMV_OFIS/results/OFIS_ig512_e2e.csv`
-   - `SpMV_OFIS/results/CPU_pthread.csv`
-   - `SparseP_ES/results/ES_256_e2e.csv`
-   - `SparseP_ES/results/ES_512_e2e.csv`
-   - `SparseP_EW/results/EW_256_e2e.csv`
-
-   Organized results: `SpMV/figures/{file}-e2e.txt`
+Files with the "e2e" suffix represent end-to-end results. (including Data Partitioning)
 
 ## Generating Figures
 

@@ -1,7 +1,7 @@
 graphs/
 .history
 .vscode
-sdk/upmem-2024.2.0-Linux-x86_64/src/backends/build
+sdk/files/upmem-2024.2.0-Linux-x86_64/
 
 SpMV/dataset
 SpMV/SparseP_ES/results

@@ -16,3 +16,5 @@ cd ..
 if [ ! -d "./graphs" ]; then
     mkdir ./graphs
 fi
+
+gnuplot gnuplot-script.plt

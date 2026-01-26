@@ -323,11 +323,9 @@ int main(int argc, char** argv){
     uint32_t nr_thread = atoi(argv[3]);
 
     char path[50] = "../dataset/";
-    char type[50] = ".txt";
 
     char filename[256];
     strcat(path, argv[4]);
-    strcat(path, type);
     strcpy(filename, path);
  
     // uint32_t nr_horiz_part = nr_dpus / nr_vert_part;
@@ -335,33 +333,19 @@ int main(int argc, char** argv){
 
     Timer timer;
 
-    // 0: file for fast test (partitioned data), 1: normal matrix file
-    uint32_t file_type = atoi(argv[5]);
     struct CSR_2D_format* csr_m;
 
     uint32_t nr_horiz_part = atoi(argv[2]);
     uint32_t nr_vert_part = nr_horiz_part;
 
-    // # Case 1: normal Matrix File-----------------------------------------------------------
-    if(file_type == 1){
-        // Load Sparse Matrix in DCSR format
-        struct COO_format* coo_m = get_COO_matrix_rev(filename);
-        csr_m = convert_to_CSR(coo_m);
-        free_COO(coo_m);
+    csr_m = load_csr(filename);
 
-        init_timer(&timer, 0);
-        start_timer(&timer, 0);
-        partition_CSR_ES(csr_m, nr_horiz_part, nr_vert_part);
-        end_timer(&timer, 0);
-        printf("Partition time: %.6f s\n", timer.time[0]);    
-    }
-    // --------------------------------------------------------------------------------------
+    init_timer(&timer, 0);
+    start_timer(&timer, 0);
+    partition_CSR_ES(csr_m, nr_horiz_part, nr_vert_part);
+    end_timer(&timer, 0);
+    printf("Partition time: %.6f s\n", timer.time[0]);    
 
-    // # Case 2: DCSR File for fast test----------------------------------------------------
-    if(file_type == 0){
-        csr_m = load_dcsr_matrix(filename);
-    }
-    // --------------------------------------------------------------------------------------
     if(csr_m == NULL){
         printf("data exceed MRAM\n");
         exit(1);
@@ -497,7 +481,6 @@ int main(int argc, char** argv){
     }
 
     end_timer(&timer, 4);
-    printf("dpu(%d, %d):\t %u\n", nr_dpus, nr_vert_part, csr_m->nnz);
 
     val_dt* host_vec = (val_dt*)calloc(rows_pad, sizeof(val_dt));
 
@@ -535,15 +518,15 @@ int main(int argc, char** argv){
     tot_time = timer.time[3] + timer.time[4];
 
 
-    char result_filename[50];
+    char result_filename[50], result_filename_e2e[50];
     if (nr_horiz_part == 256)
         strcpy(result_filename, "./results/OFIS_ig256.csv");
-    else if (nr_horiz_part == 512){
-        if(file_type == 0) strcpy(result_filename, "./results/OFIS_ig512.csv");
-        if(file_type == 1) strcpy(result_filename, "./results/OFIS_ig512_e2e.csv");
-    }
+    
+    strcpy(result_filename, "./results/OFIS_ig512.csv");
+    strcpy(result_filename_e2e, "./results/OFIS_ig512_e2e.csv");
 
     FILE* fp2 = fopen(result_filename, "a");
+    FILE* fp3 = fopen(result_filename_e2e, "a");
 
     double avg_exec_time = 0;
     double max_exec_time = -1;
@@ -585,16 +568,17 @@ int main(int argc, char** argv){
     */
 
     // file print
-    if(fp2 == NULL) exit(1);
+    if(fp2 == NULL || fp3 == NULL) exit(1);
     // nr_dpus | merge_time | avg_send | avg_retrieve | avg_exec | DPU_EXEC | Total
-    if(file_type == 0) fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[4], avg_send_time, avg_retr_time, avg_exec_time, timer.time[3], tot_time);
-    else{
-        tot_time = timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4];
-        // nr_dpus | partition_time | DPU_EXEC | timer.time[4] | E2E time
-        fprintf(fp2, "%d, %f, %f, %f, %f\n", nr_dpus, timer.time[0], timer.time[3], timer.time[4], tot_time);
-    }
-    fclose(fp2);
+    fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", nr_dpus, timer.time[4], avg_send_time, avg_retr_time, avg_exec_time, timer.time[3], tot_time);
     
+    tot_time = timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4];
+    // nr_dpus | partition_time | DPU_EXEC | timer.time[4] | E2E time
+    fprintf(fp3, "%d, %f, %f, %f, %f\n", nr_dpus, timer.time[0], timer.time[3], timer.time[4], tot_time);
+
+    fclose(fp2);
+    fclose(fp3);
+
     // Deallocation
     pthread_mutex_destroy(&result_mutex);
     pthread_mutex_destroy(&p_count_mutex);

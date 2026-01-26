@@ -11,7 +11,6 @@ typedef struct Params {
     unsigned int nthreads;
     unsigned int max_nranks;
     unsigned int nr_dpus;
-    unsigned int file_type;
 } Params;
 
 static void usage() {
@@ -51,7 +50,7 @@ static struct Params input_params(int argc, char **argv) {
     p.max_nranks = 40;
 
     int opt;
-    while((opt = getopt(argc, argv, "h:f:v:n:s:d:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "h:f:v:n:s:d:")) >= 0) {
         switch(opt) {
             case 'h':
                 usage();
@@ -62,7 +61,6 @@ static struct Params input_params(int argc, char **argv) {
             case 'n': p.nthreads      = atoi(optarg); break;
             case 's': p.max_nranks    = atoi(optarg); break;
             case 'd': p.nr_dpus       = atoi(optarg); break;
-            case 't': p.file_type      = atoi(optarg); break;
             default:
                       fprintf(stderr, "\nUnrecognized option!\n");
                       usage();

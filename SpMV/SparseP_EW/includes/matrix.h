@@ -14,17 +14,6 @@
 #define VAL_DT_TOLERANCE 1e-6
 
 /**
- * @brief COO matrix format 
- */
-struct COOMatrix {
-    uint32_t nrows; 
-    uint32_t ncols; 
-    uint32_t nnz;   
-    uint32_t *rows; 
-    struct elem_t *nnzs;   
-};
-
-/**
  * @brief RBDCSR matrix format 
  * 2D-partitioned matrix with equally-wide vertical tiles and CSR on each vertical tile
  */
@@ -151,316 +140,6 @@ bool compare_rbdcsr_matrices(struct RBDCSRMatrix *A, struct RBDCSRMatrix *B) {
 #endif
 
     return true;
-}
-
-
-/**
- * @brief read matrix from input fileName in COO format 
- * @param filename to read matrix (mtx format)
- */
-struct COOMatrix *readCOOMatrix(const char* fileName) {
-
-    
-    struct COOMatrix *cooMtx;
-    cooMtx = (struct COOMatrix *) malloc(sizeof(struct COOMatrix));
-    FILE* fp = fopen(fileName, "r");
-    uint32_t rowindx, colindx;
-    int32_t val;
-    char *line; 
-    char *token; 
-    line = (char *) malloc(1000 * sizeof(char));
-    int done = false;
-    uint64_t i = 0;
-
-    printf("%s\n", fileName);    
-
-    if(fp == NULL)
-    {
-        printf("file doesn\'t open\n");
-    }
-
-    while(fgets(line, 1000, fp) != NULL){
-        token = strtok(line, " ");
-
-        if(token[0] == '%'){
-            ;
-        } else if (done == false) {
-            cooMtx->nrows = atoi(token);
-            token = strtok(NULL, " ");
-            cooMtx->ncols = atoi(token);
-            token = strtok(NULL, " ");
-            cooMtx->nnz = strtoull(token, NULL, 10); 
-            printf("[INFO] %s: %u Rows, %u Cols, %u NNZs\n", strrchr(fileName, '/')+1, cooMtx->nrows, cooMtx->ncols, cooMtx->nnz);
-            if((cooMtx->nrows % (8 / byte_dt)) != 0) { // Padding needed
-                cooMtx->nrows += ((8 / byte_dt) - (cooMtx->nrows % (8 / byte_dt)));
-            }
-            if((cooMtx->ncols % (8 / byte_dt)) != 0) { // Padding needed
-                cooMtx->ncols += ((8 / byte_dt) - (cooMtx->ncols % (8 / byte_dt)));
-            }
-
-            cooMtx->rows = (uint32_t *) calloc((cooMtx->nrows), sizeof(uint32_t));
-            cooMtx->nnzs = (struct elem_t *) calloc((cooMtx->nnz+8), sizeof(struct elem_t));
-            done = true;
-        } else {
-            // rowindx = atoi(token);
-            // token = strtok(NULL, " ");
-            // colindx = atoi(token);
-            // token = strtok(NULL, " ");
-            
-            colindx = atoi(token);
-            token = strtok(NULL, " ");
-            rowindx = atoi(token);
-            token = strtok(NULL, " ");
-            // val = (val_dt) (rand()%4 + 1);
-            val = (val_dt) (i % 4 + 1);
-
-            cooMtx->nnzs[i].rowind = rowindx - 1; // Convert indexes to start at 0
-            cooMtx->nnzs[i].colind = colindx - 1; // Convert indexes to start at 0
-            cooMtx->nnzs[i].val = val; 
-            i++;
-        }
-    }
-
-    free(line);
-    fclose(fp);
-    return cooMtx;
-}
-
-struct COOMatrix *readCOOMatrix_rev(const char* fileName) {
-
-    
-    struct COOMatrix *cooMtx;
-    cooMtx = (struct COOMatrix *) malloc(sizeof(struct COOMatrix));
-    FILE* fp = fopen(fileName, "r");
-    uint32_t rowindx, colindx;
-    int32_t val;
-    char *line; 
-    char *token; 
-    line = (char *) malloc(1000 * sizeof(char));
-    int done = false;
-    uint64_t i = 0;
-
-    printf("%s\n", fileName);    
-
-    if(fp == NULL)
-    {
-        printf("file doesn\'t open\n");
-    }
-
-    while(fgets(line, 1000, fp) != NULL){
-        token = strtok(line, " ");
-
-        if(token[0] == '%'){
-            ;
-        } else if (done == false) {
-            cooMtx->ncols = atoi(token);
-            token = strtok(NULL, " ");
-            cooMtx->nrows = atoi(token);
-            token = strtok(NULL, " ");
-            cooMtx->nnz = strtoull(token, NULL, 10); 
-            printf("[INFO] %s: %u Rows, %u Cols, %u NNZs\n", strrchr(fileName, '/')+1, cooMtx->nrows, cooMtx->ncols, cooMtx->nnz);
-            if((cooMtx->nrows % (8 / byte_dt)) != 0) { // Padding needed
-                cooMtx->nrows += ((8 / byte_dt) - (cooMtx->nrows % (8 / byte_dt)));
-            }
-            if((cooMtx->ncols % (8 / byte_dt)) != 0) { // Padding needed
-                cooMtx->ncols += ((8 / byte_dt) - (cooMtx->ncols % (8 / byte_dt)));
-            }
-
-            cooMtx->rows = (uint32_t *) calloc((cooMtx->nrows), sizeof(uint32_t));
-            cooMtx->nnzs = (struct elem_t *) calloc((cooMtx->nnz+8), sizeof(struct elem_t));
-            done = true;
-        } else {
-            // rowindx = atoi(token);
-            // token = strtok(NULL, " ");
-            // colindx = atoi(token);
-            // token = strtok(NULL, " ");
-            
-            colindx = atoi(token);
-            token = strtok(NULL, " ");
-            rowindx = atoi(token);
-            token = strtok(NULL, " ");
-            // val = (val_dt) (rand()%4 + 1);
-            val = (val_dt) (i % 4 + 1);
-
-            cooMtx->nnzs[i].rowind = rowindx - 1; // Convert indexes to start at 0
-            cooMtx->nnzs[i].colind = colindx - 1; // Convert indexes to start at 0
-            cooMtx->nnzs[i].val = val; 
-            i++;
-        }
-    }
-
-    free(line);
-    fclose(fp);
-    return cooMtx;
-}
-
-/** 
- * brief Comparator for Quicksort
- */
-int comparator(const void *a, const void *b) {
-    if (((struct elem_t *)a)->rowind < ((struct elem_t *)b)->rowind) {
-        return -1;
-    } else if (((struct elem_t *)a)->rowind > ((struct elem_t *)b)->rowind) {
-        return 1;
-    } else {
-        return (((struct elem_t *)a)->colind - ((struct elem_t *)b)->colind);
-    }
-}
-
-/**
- * @brief Sort CooMatrix
- * @param matrix in COO format
- */
-void sortCOOMatrix(struct COOMatrix *cooMtx) {
-
-    qsort(cooMtx->nnzs, cooMtx->nnz, sizeof(struct elem_t), comparator);
-
-    int prev_row = cooMtx->nnzs[0].rowind;
-    int cur_nnz = 0;
-    for(unsigned int n = 0; n < cooMtx->nnz; n++) {
-        if(cooMtx->nnzs[n].rowind == prev_row)
-            cur_nnz++;
-        else {
-            cooMtx->rows[prev_row] = cur_nnz;
-            prev_row = cooMtx->nnzs[n].rowind;
-            cur_nnz = 1;
-        }
-    }
-    cooMtx->rows[prev_row] = cur_nnz;
-
-    cur_nnz = 0;
-    for(unsigned int r = 0; r < cooMtx->nrows; r++) {
-        cur_nnz += cooMtx->rows[r];
-    }
-    assert(cur_nnz == cooMtx->nnz);
-}
-
-/**
- * @brief deallocate matrix in COO format 
- * @param matrix in COO format
- */
-void freeCOOMatrix(struct COOMatrix *cooMtx) {
-    free(cooMtx->rows);
-    free(cooMtx->nnzs);
-    free(cooMtx);
-}
-
-/**
- * @brief convert matrix from COO to RBDCSR format 
- * @param matrix in COO format
- * @param horz_partitions, vert_partitions
- */
-struct RBDCSRMatrix *coo2rbdcsr(struct COOMatrix *cooMtx, int horz_partitions, int vert_partitions) {
-
-    struct RBDCSRMatrix *rbdcsrMtx;
-    rbdcsrMtx = (struct RBDCSRMatrix *) malloc(sizeof(struct RBDCSRMatrix));
-
-    rbdcsrMtx->nrows = cooMtx->nrows;
-    rbdcsrMtx->ncols = cooMtx->ncols;
-    rbdcsrMtx->nnz = cooMtx->nnz;
-
-    rbdcsrMtx->npartitions = vert_partitions;
-    rbdcsrMtx->horz_partitions = horz_partitions;
-    rbdcsrMtx->vert_partitions = vert_partitions;
-    rbdcsrMtx->tile_width = cooMtx->ncols / vert_partitions;
-    if (cooMtx->ncols % vert_partitions != 0)
-        rbdcsrMtx->tile_width++;
-
-    // Count nnzs per partition
-    rbdcsrMtx->nnzs_per_vert_partition = (uint32_t *) calloc((rbdcsrMtx->npartitions), sizeof(uint32_t));
-
-    uint32_t p_row, p_col, local_col;
-    rbdcsrMtx->drowptr = (uint32_t *) calloc((rbdcsrMtx->nrows + 2) * rbdcsrMtx->npartitions, sizeof(uint32_t));
-    rbdcsrMtx->dcolind = (uint32_t *) malloc((rbdcsrMtx->nnz + 2) * sizeof(uint32_t));
-    rbdcsrMtx->dval = (val_dt *) calloc((rbdcsrMtx->nnz + 8),  sizeof(val_dt)); // Padding needed
-
-    for (uint32_t n = 0; n < cooMtx->nnz; n++) {
-        p_row = cooMtx->nnzs[n].rowind; 
-        p_col = cooMtx->nnzs[n].colind / rbdcsrMtx->tile_width;
-        rbdcsrMtx->nnzs_per_vert_partition[p_col]++;
-        rbdcsrMtx->drowptr[p_col * (rbdcsrMtx->nrows + 1) + p_row]++;
-    }
-
-    // Normalize local rowptrs within each partition 
-    for (uint32_t p = 0; p < rbdcsrMtx->npartitions; p++) {
-        uint32_t sumBeforeNextRow = 0;
-        for(unsigned int rowIndx = 0; rowIndx < rbdcsrMtx->nrows; ++rowIndx) {
-            uint32_t sumBeforeRow = sumBeforeNextRow;
-            sumBeforeNextRow += rbdcsrMtx->drowptr[p * (rbdcsrMtx->nrows + 1) + rowIndx];
-            rbdcsrMtx->drowptr[p * (rbdcsrMtx->nrows + 1) + rowIndx] = sumBeforeRow;
-        }
-        rbdcsrMtx->drowptr[p * (rbdcsrMtx->nrows + 1) + rbdcsrMtx->nrows] = sumBeforeNextRow;
-    }
-
-    // Fill nnzs to partitions
-    uint64_t *global_nnzs = (uint64_t *) calloc(rbdcsrMtx->npartitions, sizeof(uint64_t));
-    uint64_t *local_nnzs = (uint64_t *) calloc(rbdcsrMtx->npartitions, sizeof(uint64_t));
-    uint64_t total_nnzs = 0;
-    for (uint32_t p = 0; p < rbdcsrMtx->npartitions; p++) {
-        global_nnzs[p] = total_nnzs;
-        total_nnzs += rbdcsrMtx->nnzs_per_vert_partition[p];
-    }
-
-    for (uint64_t n = 0; n < cooMtx->nnz; n++) {
-        p_row = cooMtx->nnzs[n].rowind; 
-        p_col = cooMtx->nnzs[n].colind / rbdcsrMtx->tile_width;
-        local_col =  cooMtx->nnzs[n].colind - (p_col * rbdcsrMtx->tile_width); 
-        rbdcsrMtx->dcolind[global_nnzs[p_col] + local_nnzs[p_col]] = local_col; 
-        rbdcsrMtx->dval[global_nnzs[p_col] + local_nnzs[p_col]] = cooMtx->nnzs[n].val;
-        local_nnzs[p_col]++;
-    }
-
-    free(global_nnzs);
-    free(local_nnzs);
-
-    return rbdcsrMtx;
-}
-
-
-struct RBDCSRMatrix* convert_to_RBDCSR(struct COOMatrix* coo_mat){
-    struct RBDCSRMatrix* csr_m;
-    csr_m = (struct RBDCSRMatrix*)malloc(sizeof(struct RBDCSRMatrix));
-
-    csr_m->nrows = coo_mat->nrows;
-    csr_m->ncols = coo_mat->ncols;
-    csr_m->nnz = coo_mat->nnz;
-
-    csr_m->npartitions = 1;
-    csr_m->horz_partitions = 1;
-    csr_m->vert_partitions = 1;
-    csr_m->tile_width = csr_m->ncols;
-
-    csr_m->nnzs_per_vert_partition = (uint32_t*)calloc(csr_m->vert_partitions, sizeof(uint32_t));
-    csr_m->nnzs_per_vert_partition[0] = csr_m->nnz;
-
-    csr_m->drowptr = (uint32_t*)calloc(csr_m->nrows + 2, sizeof(uint32_t));
-    csr_m->dcolind = (uint32_t*)calloc(csr_m->nnz + 2, sizeof(uint32_t));
-    csr_m->dval = (val_dt*)calloc(csr_m->nnz + 8, sizeof(val_dt));
-
-    for(uint32_t n = 0; n < coo_mat->nnz; ++n){
-        csr_m->drowptr[coo_mat->nnzs[n].rowind]++;
-    }
-
-    uint32_t sumBeforeNextRow = 0;
-    for(uint32_t rowIndx = 0; rowIndx < csr_m->nrows; ++rowIndx){
-        uint32_t sumBeforeRow = sumBeforeNextRow;
-        sumBeforeNextRow += csr_m->drowptr[rowIndx];
-        csr_m->drowptr[rowIndx] = sumBeforeRow;
-    }
-    csr_m->drowptr[csr_m->nrows] = sumBeforeNextRow;
-
-    uint64_t* row_counter = (uint64_t*)calloc(csr_m->nrows, sizeof(uint64_t));
-    for(uint64_t n = 0; n < coo_mat->nnz; ++n){
-        uint32_t row = coo_mat->nnzs[n].rowind;
-        uint64_t idx = csr_m->drowptr[row] + row_counter[row];
-
-        csr_m->dcolind[idx] = coo_mat->nnzs[n].colind;
-        csr_m->dval[idx] = coo_mat->nnzs[n].val;
-        row_counter[row]++;
-    }
-
-    free(row_counter);
-    return csr_m;
 }
 
 void partition_CSR_EW(struct RBDCSRMatrix* csr_m, int nr_horiz, int nr_vert){
@@ -593,7 +272,6 @@ void partition_CSR_EW(struct RBDCSRMatrix* csr_m, int nr_horiz, int nr_vert){
     free(old_dval);
 }
 
-
 /**
  * @brief deallocate matrix in RBDCSR format 
  * @param matrix in RBDCSR format
@@ -604,6 +282,70 @@ void freeRBDCSRMatrix(struct RBDCSRMatrix *rbdcsrMtx) {
     free(rbdcsrMtx->dcolind);
     free(rbdcsrMtx->dval);
     free(rbdcsrMtx);
+}
+
+struct RBDCSRMatrix* load_csr(const char* filename){
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "Error: Could not open file %s for reading.\n", filename);
+        return NULL;
+    }
+
+    uint32_t nr_rows, nr_cols, nnz;
+    uint32_t nr_horiz, nr_vert, nr_part;
+    uint32_t height, width;
+
+    // Read basic information
+    fread(&nr_rows, sizeof(uint32_t), 1, fp);
+    fread(&nr_cols, sizeof(uint32_t), 1, fp);
+    fread(&nnz, sizeof(uint32_t), 1, fp);
+    fread(&nr_horiz, sizeof(uint32_t), 1, fp);
+    fread(&nr_vert, sizeof(uint32_t), 1, fp);
+    fread(&nr_part, sizeof(uint32_t), 1, fp);
+    fread(&height, sizeof(uint32_t), 1, fp);
+    fread(&width, sizeof(uint32_t), 1, fp);
+
+    // Check if it's basic CSR (no partition)
+    if(nr_part != 1){
+        fprintf(stderr, "Warning: File has nr_part=%u (expected 1 for basic CSR)\n", nr_part);
+    }
+
+    // Allocate RBDCSRMatrix
+    struct RBDCSRMatrix *A = (struct RBDCSRMatrix*)malloc(sizeof(struct RBDCSRMatrix));
+
+    A->nrows = nr_rows;
+    A->ncols = nr_cols;
+    A->nnz = nnz;
+    A->npartitions = 1;
+    A->horz_partitions = 1;
+    A->vert_partitions = 1;
+    A->tile_width = nr_cols;
+
+    // Allocate arrays
+    size_t row_ptr_size = (uint64_t)(height + 2) * (uint64_t)nr_part;
+    uint32_t* temp_row_ptr = (uint32_t*)calloc(row_ptr_size, sizeof(uint32_t));
+
+    A->drowptr = (uint32_t*)calloc(nr_rows + 2, sizeof(uint32_t));
+    A->dcolind = (uint32_t*)calloc(nnz + 2, sizeof(uint32_t));
+    A->dval = (val_dt*)calloc(nnz + 8, sizeof(val_dt));
+    A->nnzs_per_vert_partition = (uint32_t*)calloc(1, sizeof(uint32_t));
+
+    // Read arrays from file
+    fread(temp_row_ptr, sizeof(uint32_t), row_ptr_size, fp);
+    fread(A->dcolind, sizeof(uint32_t), nnz, fp);
+    fread(A->dval, sizeof(val_dt), nnz, fp);
+    fread(A->nnzs_per_vert_partition, sizeof(uint32_t), nr_part, fp);
+
+    // Copy to drowptr (should be same for basic CSR with nr_part=1)
+    for(uint32_t i = 0; i <= nr_rows; ++i){
+        A->drowptr[i] = temp_row_ptr[i];
+    }
+    free(temp_row_ptr);
+
+    fclose(fp);
+    printf("Successfully loaded CSR matrix from %s and converted to RBDCSRMatrix\n", filename);
+    printf("Matrix: rows=%u, cols=%u, nnz=%u\n", A->nrows, A->ncols, A->nnz);
+    return A;
 }
 
 

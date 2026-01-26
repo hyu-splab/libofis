@@ -24,7 +24,7 @@ do
         nr_thread=$(expr $nr_dpu / 64)
         for ((i=1;i<=num_iter;i++))
         do
-            sudo LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./bin/CSR_host $nr_dpu $nr_part $nr_thread "dcsr_${dataset}"
+            sudo LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./bin/CSR_host $nr_dpu $nr_part $nr_thread "ba_sparse_matrix_${dataset}"
         done
     done
 done

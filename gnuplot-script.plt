@@ -1,33 +1,3 @@
-# <<Figure 6-1>>
-
-reset
-set title "BA-200" offset -15,-2.6 font ",20"
-set size 1,0.42
-set bmargin 0.3
-set xrange [*:*] noreverse writeback
-set yrange [0:35]
-set ylabel offset 1,0
-set ylabel "Exe. time (sec)"
-unset xtics
-set ytics 5,5,35
-set grid y
-set style data histograms
-set style histogram rowstacked gap 0
-set boxwidth 0.85
-set style fill solid border -1
-set terminal postscript eps enhanced color 18
-set output "graphs/6_1_exe-time-200.eps"
-plot newhistogram, 'SpMV/figures/ofis256-rank-200.txt' u 2:xtic(1) lc rgb "#0000ff" notitle, \
-'' u 3 lc rgb "#ffaaaa" notitle, \
-'' u 4 lc rgb "#ffffff" notitle, \
-newhistogram, 'SpMV/figures/es256-200.txt' u 2:xtic(1) lc rgb "#0000ff" notitle, \
-'' u 3 lc rgb "#ffaaaa" notitle, \
-'' u 4 lc rgb "#ffffff" notitle, \
-newhistogram, 'SpMV/figures/ew256-200.txt' u 2:xtic(1) lc rgb "#0000ff" notitle, \
-'' u 3 lc rgb "#ffaaaa" notitle, \
-'' u 4 lc rgb "#ffffff" notitle
-
-
 # <<Figure 6-2>>
 
 reset
@@ -293,7 +263,7 @@ set yrange [1:4.5]
 set ylabel offset 2,0
 set ylabel "Speedup"
 set xlabel "No. of DPUs" offset 0,0.5
-set ytics (1.5,2.5,3.5)
+set ytics 1,1,4
 set xtics (64,128,256,512,1024) nomirror
 set grid y
 set key bottom horizontal

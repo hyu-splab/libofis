@@ -32,7 +32,6 @@
  * 4. Help structures for data partitioning
  */
 static struct RBDCSRMatrix* A;
-static struct COOMatrix* B;
 static val_dt* x;
 static val_dt* z;
 static val_dt* y;
@@ -141,8 +140,6 @@ int main(int argc, char **argv) {
     Timer timer;
     resetTimer(&timer);
 
-    int file_type = p.file_type;
-
     uint32_t horz_partitions, vert_partitions;
     if(p.nr_partitions == 256){
         horz_partitions = 128 * 256;
@@ -151,28 +148,12 @@ int main(int argc, char **argv) {
         horz_partitions = 256 * 512;
         vert_partitions = 2;
     }
-    
-    // Case 1: normal Matrix File-----------------------------------------------------------
-    if(file_type == 1){
-        // Load Sparse Matrix in RBDCSR format
-        B = readCOOMatrix_rev(p.fileName);
 
-        // B = readCOOMatrix(p.fileName);
-        // sortCOOMatrix(B);
+    A = load_csr(p.fileName);
 
-        printf("[INFO] %dx%d Matrix Partitioning\n\n", horz_partitions, vert_partitions);
-        A = convert_to_RBDCSR(B);
-
-        startTimer(&timer, 1);
-        partition_CSR_EW(A, horz_partitions, vert_partitions);
-        stopTimer(&timer, 1);
-        freeCOOMatrix(B);
-    }
-    //-------------------------------------------------------------------------------------
-    // Case 2: RBDCSR File for fast test-----------------------------------------------------------
-    else if(file_type == 0){
-        A = load_rbdcsr_matrix(p.fileName);
-    }
+    startTimer(&timer, 1);
+    partition_CSR_EW(A, horz_partitions, vert_partitions);
+    stopTimer(&timer, 1);
 
 // // RBDCSRMatrix Data Check
 //     printf("nrows: %d\nncols: %d\nnnz: %d\nnpartitions: %d\nhorz_partitions: %d\nvert_partitions: %d\ntile_width: %d\n", A->nrows, A->ncols, A->nnz, A->npartitions, A->horz_partitions, A->vert_partitions, A->tile_width);
@@ -474,8 +455,7 @@ int main(int argc, char **argv) {
 
 
     // Copy input vector  to DPUs
-    if(dpu_iter == 0)  startTimer_total(&timer, 2);
-    else startTimer_total(&timer, 3);
+    startTimer_total(&timer, 3);
     i = 0;
     DPU_FOREACH(dpu_set, dpu, i) {
         int _dpu_index = 0;
@@ -492,11 +472,8 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_prepare_xfer(dpu, x + tile_vert_indx * A->tile_width));
     }
     DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, max_rows_per_dpu * sizeof(val_dt), tile_width_pad * sizeof(val_dt), DPU_XFER_DEFAULT));
-    if(dpu_iter == 0)  stopTimer(&timer, 2);
-    else stopTimer(&timer, 3);
+    stopTimer(&timer, 3);
 
-
-    
     // Run kernel on DPUs
     startTimer_total(&timer, 4);
     DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
@@ -559,51 +536,40 @@ DPU_FOREACH(dpu_set, dpu, i) {
     }
 }
 stopTimer(&timer, 6);
-
-
-
-
-    // printf("Retrieve Output Vector: Iter %d", dpu_iter / NR_DPUS);
-    // printTimer(&timer, 3);
-
 }
 
-    // Print timing results
-    // printf("\n");
-    // printf("Load Matrix");
-    // printTimer(&timer, 0);
-    // printf("Load Input Vector (dup x)");
-    // printTimer(&timer, 2);
-    // printf("Load Input Vector (dup O)");
-    // printTimer(&timer, 3);
-    // printf("Kernel");
-    // printTimer(&timer, 4);
-    // printf("Retrieve Output Vector");
-    // printTimer(&timer, 5);
-    // printf("Merge Partial Results");
-    // printTimer(&timer, 6);
-
-    char output_filename[50];
+    char output_filename[50], output_filename_e2e[50];
     if(p.nr_partitions == 256){
-        if(file_type == 0) strcpy(output_filename, "./results/EW_256.csv");
-        if(file_type == 1) strcpy(output_filename, "./results/EW_256_e2e.csv");
+        strcpy(output_filename, "./results/EW_256.csv");
+        strcpy(output_filename_e2e, "./results/EW_256_e2e.csv");
     }else if (p.nr_partitions == 512){
-        if(file_type == 0) strcpy(output_filename, "./results/EW_512.csv");
-        if(file_type == 1) strcpy(output_filename, "./results/EW_512_e2e.csv");
+        strcpy(output_filename, "./results/EW_512.csv");
+        strcpy(output_filename_e2e, "./results/EW_512_e2e.csv");
     }
     FILE* fp2 = fopen(output_filename, "a");
+    FILE* fp3 = fopen(output_filename_e2e, "a");
 
-    if(fp2 == NULL) exit(1);
+    /* timer info
+    0: load matrix
+    1, 7, 8, 9: partitioning
+    3: load input vector
+    4: DPU execution
+    5: retrieve output vector
+    6: merge partial results 
+    */
+
+    if(fp2 == NULL || fp3 == NULL) exit(1);
     double total_time = timer.time[0] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6];
     // nr_dpus | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | tot_time
-    if(file_type == 0) fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (timer.time[0] / 1000000), (timer.time[3] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), total_time / 1000000);
-    else{
-        double partition_time = timer.time[1] + timer.time[7] + timer.time[8] + timer.time[9];
-        double end_time = total_time + partition_time;
-        // nr_dpus | partition_time | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | E2E time
-        fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (partition_time / 1000000), (timer.time[0] / 1000000), (timer.time[3] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), end_time / 1000000);
-    }
+    fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (timer.time[0] / 1000000), (timer.time[3] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), total_time / 1000000);
+
+    double partition_time = timer.time[1] + timer.time[7] + timer.time[8] + timer.time[9];
+    double end_time = total_time + partition_time;
+    // nr_dpus | partition_time | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | E2E time
+    fprintf(fp3, "%d, %f, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (partition_time / 1000000), (timer.time[0] / 1000000), (timer.time[3] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), end_time / 1000000);
+
     fclose(fp2);
+    fclose(fp3);
 
 #if CHECK_CORR
     // Check output
@@ -624,7 +590,6 @@ stopTimer(&timer, 6);
             status = false;
         }
     }
-    // printf("%f %f\n", sum_host, sum_dpu);
 
     if (status) {
         printf("Result:\t\t \033[34mCorrect\033[0m\n");

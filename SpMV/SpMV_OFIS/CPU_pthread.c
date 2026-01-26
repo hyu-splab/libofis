@@ -116,35 +116,16 @@ int main(int argc, char** argv){
     uint32_t nr_thread = atoi(argv[1]);
 
     char path[50] = "../dataset/";
-    char type[50] = ".txt";
 
     char filename[256];
     strcat(path, argv[2]);
-    strcat(path, type);
     strcpy(filename, path);
     
     Timer timer;
 
-    // 0: file for fast test (partitioned data), 1: normal matrix file
-    uint32_t file_type = atoi(argv[3]);
-
     struct CSR_2D_format* csr_m;
+    csr_m = load_csr(filename);
 
-    // # Case 1: DCSR----------------------------------------------------------------
-    double partition_time;
-    if(file_type == 1){
-        // Load sparse matrix in CSR format
-        struct COO_format* coo_m = get_COO_matrix_rev(filename);
-        int scale_factor;
-        csr_m = convert_to_CSR(coo_m);
-        free_COO(coo_m);
-    }
-    // ------------------------------------------------------------------------------
-
-    if(file_type == 0){
-        csr_m = load_dcsr_matrix(filename);
-    }
-    
     if(csr_m == NULL){
         printf("data exceed MRAM\n");
         exit(1);
@@ -204,9 +185,7 @@ int main(int argc, char** argv){
         printf("host:\t %lf\n", sum_check);
         printf("err:\t %d\n", err_count);
     }
-            printf("multi_host:\t %lf\n", sum_host);
-            // printf("col host: %lf\n", sum_host2);
-        printf("host:\t %lf\n", sum_check);
+
     if(result) printf("Result:\t\t \033[34mCorrect\033[0m\n");
     else printf("Result:\t\t \033[31mIncorrect\033[0m\n");
     free(host_check_vec);

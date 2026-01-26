@@ -17,6 +17,8 @@ with open(input_file, 'r') as infile:
     for row in csv_reader:
         data.append([float(x) for x in row])
 
+data_1024 = [row for row in data if int(row[0]) == 1024]
+
 def calculate_group_averages(group):
     averages = []
     for col in range(len(group[0])): 
@@ -27,8 +29,8 @@ def calculate_group_averages(group):
 
 final_output = []
 
-for i in range(0, len(data), num_iter):
-    group = data[i:i+num_iter] 
+for i in range(0, len(data_1024), num_iter):
+    group = data_1024[i:i+num_iter] 
     group_averages = calculate_group_averages(group)
     final_output.append(group_averages)
 

@@ -12,7 +12,6 @@ dpu-upmem-dpurte-clang -DTYPE=FP32 -DNR_TASKLETS=16 -o ./bin/spmv_2D_dpu CSR_dpu
 gcc --std=c99 -fopenmp CSR_host.c -o ./bin/CSR_host `dpu-pkg-config --cflags --libs dpu` -DTYPE=FP32 -DNR_TASKLETS=16
 
 num_iter=$1
-file_type=$2
 # ----------------------------------------------------------------------------------------------------
 nr_part=512
 datasets=(100 200 400 600 800 1000)
@@ -24,11 +23,7 @@ do
     do
         for ((i=1;i<=num_iter;i++))
         do
-            if [ $file_type -eq 0 ]; then
-                sudo LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./bin/CSR_host $nr_dpu $nr_part "dcsr_${dataset}" $file_type
-            else
-                sudo LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./bin/CSR_host $nr_dpu $nr_part "ba_sparse_matrix_${dataset}" $file_type
-            fi
+            sudo LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./bin/CSR_host $nr_dpu $nr_part "ba_sparse_matrix_${dataset}"
         done
     done
 done
