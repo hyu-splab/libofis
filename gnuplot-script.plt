@@ -389,7 +389,7 @@ set ylabel offset 2,0
 set ylabel "Time (sec)" offset 1,0
 set xtics nomirror font ",18"
 set grid y
-set key at graph -0.05,0.99 left top horizontal samplen 1 spacing 1.1 font ",17"
+set key at graph -0.05,0.99 left top horizontal samplen 1 spacing 1.1 font ",17" invert
 set style data histograms
 set style histogram rowstacked gap 10
 set boxwidth 0.85

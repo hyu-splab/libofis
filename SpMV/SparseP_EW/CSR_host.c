@@ -596,7 +596,7 @@ stopTimer(&timer, 6);
     if(fp2 == NULL) exit(1);
     double total_time = timer.time[0] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6];
     // nr_dpus | load_matrix | load_input | DPU_EXEC | retrieve_time | merge_time | tot_time
-    if(file_type == 0) fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (timer.time[0] / 1000000), (timer.time[2] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), total_time / 1000000);
+    if(file_type == 0) fprintf(fp2, "%d, %f, %f, %f, %f, %f, %f\n", NR_DPUS, (timer.time[0] / 1000000), (timer.time[3] / 1000000), (timer.time[4] / 1000000), (timer.time[5] / 1000000), (timer.time[6] / 1000000), total_time / 1000000);
     else{
         double partition_time = timer.time[1] + timer.time[7] + timer.time[8] + timer.time[9];
         double end_time = total_time + partition_time;
