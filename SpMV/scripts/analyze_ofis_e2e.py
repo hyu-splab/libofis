@@ -54,7 +54,7 @@ for file_index in range(num_files):
     with open(output_file, 'w') as outfile:
         outfile.write("#DPUs\texec\tpostprocessing\tpreprocessing\te2e\n")
         
-        for row in final_output[file_index * num_iter : (file_index + 1) * num_iter]:
+        for row in final_output[file_index * 1 : (file_index + 1) * 1]:
             # a, c, d, b, e - order rearrange
             reordered_row = [int(row[0]), "{:.4f}".format(row[2]), "{:.4f}".format(row[3]), 
                              "{:.4f}".format(row[1]), "{:.4f}".format(row[4])]

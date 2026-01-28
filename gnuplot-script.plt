@@ -286,10 +286,10 @@ set lmargin 6.5
 set rmargin 1.5
 set bmargin 0.1
 set xrange [3900:10500]
-set yrange [0.9:1.6]
+set yrange [0.8:1.8]
 set ylabel offset 2,0
 set ylabel "Speedup"
-set ytics (1.0, 1.2, 1.4)
+set ytics (1.0, 1.2, 1.4, 1.6)
 unset xtics 
 set grid y
 set key bottom horizontal
@@ -310,11 +310,11 @@ set size 1,0.52
 set lmargin 6.5
 set rmargin 1.5
 set xrange [3900:10500]
-set yrange [0.9:1.6]
+set yrange [0.8:1.8]
 set ylabel offset 2,0
 set ylabel "Speedup"
 set xlabel "No. of Parts" offset 0,0.5
-set ytics (1.0,1.2,1.4)
+set ytics (1.0,1.2,1.4,1.6)
 set xtics (4096,5120,6144,7168,8192,9216,10240) nomirror
 set grid y
 set key bottom horizontal

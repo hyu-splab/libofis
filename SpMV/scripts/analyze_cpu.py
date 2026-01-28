@@ -50,7 +50,7 @@ for file_index in range(num_files):
     with open(output_file, 'w') as outfile:
         outfile.write("#Threads\texec\n")
         
-        for row in final_output[file_index * num_iter : (file_index + 1) * num_iter]:
+        for row in final_output[file_index * 1 : (file_index + 1) * 1]:
             # a, c, e, d, b, g - order rearrange
             reordered_row = [int(row[0]), "{:.4f}".format(row[1])]
             
