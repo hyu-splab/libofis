@@ -177,4 +177,8 @@ By default, all figure sections are included. To generate only specific figures:
 2. Uncomment (remove `#`) only the figure sections you want to generate
 3. Run the gnuplot command
 
+## Reproducibility
+Results may vary slightly (±5~10%) depending on hardware and system configuration.
+Overall trends match the paper.
+
    
