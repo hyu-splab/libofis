@@ -96,8 +96,8 @@ OFIS_dpu_launch(struct dpu_set_t dpu_set);
 int
 OFIS_parallel_exec(uint32_t nr_thread, void *(exec_func)(void*), void **args);
 
-// dpu_error_t
-// OFIS_set_mux_dpu(struct dpu_set_t rank, uint8_t dpu_id, bool dir);
+dpu_error_t
+OFIS_set_mux_dpu(struct dpu_set_t rank, uint8_t dpu_id, bool dir);
 
 /**
  * @brief Allow CPU or DPU to access MRAMs in a given IG
@@ -135,5 +135,26 @@ OFIS_prepare_xfer_dpu(struct dpu_set_t dpu, uint64_t bitmap, void* buffer);
  */
 bool
 OFIS_prepare_xfer_ig(struct dpu_set_t dpu, uint8_t bitmap, void* buffer);
+
+/**
+ * @brief Execute the OFIS memory transfer on the DPU set
+ *
+ * Use the host buffers previously defined by `OFIS_prepare_xfer_(dpu/ig)` or `dpu_prepare_xfer'.
+ * It skips MUX control for access control.
+ *
+ * @param dpu_set the identifier of the DPU set
+ * @param xfer direction of the transfer
+ * @param symbol_name the name of the DPU symbol where the transfer starts
+ * @param symbol_offset the byte offset from the base DPU symbol address where the transfer starts
+ * @param length the number of bytes to copy
+ * @param flags options of the transfer
+ * @return Whether the operation was successful.
+ */
+dpu_error_t
+OFIS_push_xfer(struct dpu_set_t dpu_set, 
+    dpu_xfer_t xfer, 
+    const char *symbol_name,
+    uint32_t symbol_offset,
+    size_t length); 
 
 #endif // DPU_H

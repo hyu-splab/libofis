@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <sched.h>
-#include <omp.h>
+// #include <omp.h>
 
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/spmv_2D_dpu"
@@ -215,7 +215,7 @@ void* thread_fct(void* arg){
             uint32_t idx = rank_idx + each_dpu;
             DPU_ASSERT(dpu_prepare_xfer(dpu, output_vec + (part_dpu[idx] * args->max_nr_rows_dpu)));
         }
-        dpu_push_xfer(rank, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, out_base, out_size, DPU_XFER_DEFAULT);
+        OFIS_push_xfer(rank, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, out_base, out_size);
         end_timer(&global_retr_timer, rank_id);
 
         pthread_mutex_lock(&p_count_mutex);
@@ -250,7 +250,7 @@ void* thread_fct(void* arg){
                 uint32_t idx = curr_p_count + each_dpu;
                 DPU_ASSERT(dpu_prepare_xfer(dpu, csr_m->row_ptr + dpu_info[idx].start_row_ptr));
             }
-            dpu_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, row_base, row_size, DPU_XFER_DEFAULT);
+            OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, row_base, row_size);
 
             // Send col_idx
             if (max_nnz % 2 != 0)
@@ -260,21 +260,21 @@ void* thread_fct(void* arg){
                 uint32_t idx = curr_p_count + each_dpu;
                 DPU_ASSERT(dpu_prepare_xfer(dpu, csr_m->col_idx + dpu_info[idx].start_idx));
             }
-            dpu_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, col_base, xfer_size, DPU_XFER_DEFAULT);
+            OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, col_base, xfer_size);
 
             // Send values
             DPU_FOREACH(rank, dpu, each_dpu){
                 uint32_t idx = curr_p_count + each_dpu;
                 DPU_ASSERT(dpu_prepare_xfer(dpu, csr_m->values + dpu_info[idx].start_idx));
             }
-            dpu_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, val_base, xfer_size, DPU_XFER_DEFAULT);
+            OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, val_base, xfer_size);
 
             // Send input_vec
             DPU_FOREACH(rank, dpu, each_dpu){
                 uint32_t idx = curr_p_count + each_dpu;
                 DPU_ASSERT(dpu_prepare_xfer(dpu, input_vec + (idx % csr_m->nr_vert) * csr_m->width));
             }
-            dpu_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, vec_base, vec_size, DPU_XFER_DEFAULT);
+            OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, vec_base, vec_size);
             end_timer(&global_send_timer, rank_id);
         }
 
@@ -294,28 +294,40 @@ int main(int argc, char** argv){
 
     // if use BA data
     char path[50] = "../dataset/";
+    char type[50] = ".txt";
 
     char filename[256];
     strcat(path, argv[4]);
+    strcat(path, type);
     strcpy(filename, path);
 
     uint32_t nr_ranks = nr_dpus / 64 + (nr_dpus % 64 == 0 ? 0 : 1);
 
     Timer timer;
 
-    struct CSR_2D_format* csr_m;
-    csr_m = load_csr(filename);
+    // Load sparse matrix in CSR format
+    // init_timer(&timer, 0);
+    // struct COO_format* coo_m = get_COO_matrix_rev(filename);
+    // printf("get coo done\n");
+    // uint32_t bool_test = sort_COO(coo_m); // too slow to sort
+    // struct CSR_2D_format* csr_m = COO_to_CSR_2D(coo_m, nr_horiz_part, nr_vert_part, &scale_factor);
+    // start_timer(&timer, 0);
 
     uint32_t nr_horiz_part = atoi(argv[2]);
     uint32_t nr_vert_part = nr_horiz_part;
 
-    partition_CSR_ES(csr_m, nr_horiz_part, nr_vert_part);
+    struct CSR_2D_format* csr_m = load_dcsr_matrix(filename);
 
     if(csr_m == NULL){
         printf("data exceed MRAM\n");
         exit(1);
     }
 
+    printf("nr_parts: %d\n", csr_m->nr_part);
+    // free_COO(coo_m);
+    // end_timer(&timer, 0);
+
+    // printf("Convert to CSR: %lf\n", timer.time[0]);
     printf("File name: %s\n", filename);
 
     for(int i = 1; i < 6; ++i){
@@ -435,6 +447,7 @@ int main(int argc, char** argv){
     }
 
     end_timer(&timer, 4);
+    printf("dpu(%d, %d):\t %u\n", nr_dpus, nr_vert_part, csr_m->nnz);
 
     val_dt* host_vec = (val_dt*)calloc(rows_pad, sizeof(uint32_t));
 

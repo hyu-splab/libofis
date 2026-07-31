@@ -194,23 +194,22 @@ void* thread_fct(void* arg){
     OFIS_dpu_launch(rank);
 
     int finish_count = 0;
-    uint8_t finish_ig;
+    uint64_t finish_dpu;
     while (finish_count < nr_dpus_per_thread){
 
         // Read all check_flags of rank
-        uint32_t nr_finish_ig = 0;
+        uint32_t nr_finish_dpu = 0;
         do{
-            nr_finish_ig = OFIS_get_finished_ig(rank, &finish_ig);
-        }while(nr_finish_ig == 0);
-
+            nr_finish_dpu = OFIS_get_finished_dpu(rank, &finish_dpu);
+        }while(nr_finish_dpu == 0);
         end_timer(&global_exec_timer, rank_id);
 
         uint32_t change_state = -1; // check_flag send to DPU
      
         // Set MUX for the CPU (To Read & Write data)
-        for(int i = 0; i < 8; ++i){
-            if(finish_ig & (1 << i))
-                OFIS_set_mux_ig(rank, i, OPEN_TO_HOST);
+        for(int i = 0; i < 64; ++i){
+            if(finish_dpu & (1ULL << i))
+                OFIS_set_mux_dpu(rank, i, OPEN_TO_HOST);
         }
 
         start_timer(&global_retr_timer, rank_id);
@@ -218,8 +217,9 @@ void* thread_fct(void* arg){
         DPU_FOREACH(rank, dpu, each_dpu){
             uint32_t idx = 64 * rank_id + each_dpu;
             if(part_dpu[idx] >= csr_m->nr_part) continue;
-            OFIS_prepare_xfer_ig(dpu, finish_ig, output_vec + (part_dpu[idx] * args->max_nr_rows_dpu));
+            OFIS_prepare_xfer_dpu(dpu, finish_dpu, output_vec + (part_dpu[idx] * args->max_nr_rows_dpu));
         }
+        // 1. Read interim results
         OFIS_push_xfer(rank, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, out_base, out_size);
         end_timer(&global_retr_timer, rank_id);
 
@@ -227,17 +227,17 @@ void* thread_fct(void* arg){
         if (p_count >= csr_m->nr_part){ // Trigger DPU Binary to exit
             pthread_mutex_unlock(&p_count_mutex);
             change_state = 0;
-            finish_count += 8 * nr_finish_ig;
+            finish_count += nr_finish_dpu;
         }else{
             uint32_t curr_p_count = p_count;
-            p_count += nr_finish_ig * 8;
+            p_count += nr_finish_dpu;
             pthread_mutex_unlock(&p_count_mutex);
 
             start_timer(&global_send_timer, rank_id);
             change_state = 2;
             uint32_t max_nnz = 0;
 
-            for(uint32_t i = 0; i < nr_finish_ig * 8; ++i){
+            for(uint32_t i = 0; i < nr_finish_dpu; ++i){
                 input_args[curr_p_count + i].max_nr_rows = args->max_nr_rows_dpu;
                 input_args[curr_p_count + i].max_nnz = args->max_nnz;
                 if(dpu_info[curr_p_count + i].nnz > max_nnz)
@@ -249,7 +249,7 @@ void* thread_fct(void* arg){
             uint32_t part_idx = curr_p_count;
             DPU_FOREACH(rank, dpu, each_dpu){
                 uint32_t idx = 64 * rank_id + each_dpu;
-                if(OFIS_prepare_xfer_ig(dpu, finish_ig, input_args + part_idx)){
+                if(OFIS_prepare_xfer_dpu(dpu, finish_dpu, input_args + part_idx)){
                     part_dpu[idx] = part_idx;
                     part_idx += 1;
                 }
@@ -260,10 +260,11 @@ void* thread_fct(void* arg){
             part_idx = curr_p_count;
             DPU_FOREACH(rank, dpu, each_dpu){
                 if(part_idx >= csr_m->nr_part) continue;
-                if(OFIS_prepare_xfer_ig(dpu, finish_ig, csr_m->row_ptr + dpu_info[part_idx].start_row_ptr)){
+                if(OFIS_prepare_xfer_dpu(dpu, finish_dpu, csr_m->row_ptr + dpu_info[part_idx].start_row_ptr)){
                     part_idx += 1;
                 }
             }
+            // 2. Send row_ptr
             OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, row_base, row_size);
 
             // Send col_idx
@@ -274,30 +275,33 @@ void* thread_fct(void* arg){
             part_idx = curr_p_count;
             DPU_FOREACH(rank, dpu, each_dpu){
                 if(part_idx >= csr_m->nr_part) continue;
-                if(OFIS_prepare_xfer_ig(dpu, finish_ig, csr_m->col_idx + dpu_info[part_idx].start_idx)){
+                if(OFIS_prepare_xfer_dpu(dpu, finish_dpu, csr_m->col_idx + dpu_info[part_idx].start_idx)){
                     part_idx += 1;
                 }
             }
+            // 3. Send col_idx
             OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, col_base, xfer_size);
 
             // Send values
             part_idx = curr_p_count;
             DPU_FOREACH(rank, dpu, each_dpu){
                 if(part_idx >= csr_m->nr_part) continue;
-                if(OFIS_prepare_xfer_ig(dpu, finish_ig, csr_m->values + dpu_info[part_idx].start_idx)){
+                if(OFIS_prepare_xfer_dpu(dpu, finish_dpu, csr_m->values + dpu_info[part_idx].start_idx)){
                     part_idx += 1;
                 }
             }
+            // 4. Send values
             OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, val_base, xfer_size);
 
             // Send input_vec
             part_idx = curr_p_count;
             DPU_FOREACH(rank, dpu, each_dpu){
                 if(part_idx >= csr_m->nr_part) continue;
-                if(OFIS_prepare_xfer_ig(dpu, finish_ig, input_vec + (part_idx % csr_m->nr_vert) * csr_m->width)){
+                if(OFIS_prepare_xfer_dpu(dpu, finish_dpu, input_vec + (part_idx % csr_m->nr_vert) * csr_m->width)){
                     part_idx += 1;
                 }
             }
+            // 5. Send input_vec
             OFIS_push_xfer(rank, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, vec_base, vec_size);
             
             end_timer(&global_send_timer, rank_id);
@@ -305,12 +309,12 @@ void* thread_fct(void* arg){
 
         if(change_state == 2) start_timer(&global_exec_timer, rank_id);
 
-        for(int i = 0; i < 8; ++i){
-            if(finish_ig & (1 << i)){
+        for(int i = 0; i < 64; ++i){
+            if(finish_dpu & (1ULL << i)){
                 // Set MUX for DPUs
-                OFIS_set_mux_ig(rank, i, OPEN_TO_DPU);
+                OFIS_set_mux_dpu(rank, i, OPEN_TO_DPU);
                 // Trigger DPU binary to continue iteration
-                OFIS_set_state_ig(rank, i, change_state);
+                OFIS_set_state_dpu(rank, i, change_state);
             }
         }
     }
@@ -511,11 +515,11 @@ int main(int argc, char** argv){
         sum_dpu += result_vec[i];
         sum_host += host_vec[i];
     }
-    if(!result){
+    // if(!result){
         printf("dpu:\t %lf\n", sum_dpu);
         printf("host:\t %lf\n", sum_host);
         printf("err:\t %d\n", err_count);
-    }
+    // }
 
     if(result) printf("Result:\t\t \033[34mCorrect\033[0m\n");
     else printf("Result:\t\t \033[31mIncorrect\033[0m\n");
@@ -535,9 +539,9 @@ int main(int argc, char** argv){
 
     char result_filename[50];
     if (nr_horiz_part == 256)
-        strcpy(result_filename, "./results/OFIS_ig256.csv");
+        strcpy(result_filename, "./results/OFIS_dpu256.csv");
     else if (nr_horiz_part == 512)
-        strcpy(result_filename, "./results/OFIS_ig512.csv");
+        strcpy(result_filename, "./results/OFIS_dpu512.csv");
 
     FILE* fp2 = fopen(result_filename, "a");
 

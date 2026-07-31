@@ -151,20 +151,20 @@ OFIS_parallel_exec(uint32_t nr_thread, void *(exec_func)(void*), void **args){
     return ret;
 }
 
-// __API_SYMBOL__ dpu_error_t
-// OFIS_set_mux_dpu(struct dpu_set_t rank, uint8_t dpu_id, bool dir){
-//     dpu_error_t status = DPU_OK;
+__API_SYMBOL__ dpu_error_t
+OFIS_set_mux_dpu(struct dpu_set_t rank, uint8_t dpu_id, bool dir){
+    dpu_error_t status = DPU_OK;
 
-//     uint8_t ci_idx = dpu_id / 8;
-//     uint8_t dpu_idx = dpu_id % 8;
-//     uint8_t ci_mask = 1u << ci_idx;
+    uint8_t ci_idx = dpu_id / 8;
+    uint8_t dpu_idx = dpu_id % 8;
+    uint8_t ci_mask = 1u << ci_idx;
 
-//     struct dpu_rank_t* target_rank = rank.list.ranks[0];
-//     ufi_select_dpu(target_rank, &ci_mask, dpu_idx);
-//     ufi_set_mram_mux(target_rank, ci_mask, (!dir) ? 0x0: 0xFF);
+    struct dpu_rank_t* target_rank = rank.list.ranks[0];
+    ufi_select_dpu(target_rank, &ci_mask, dpu_idx);
+    ufi_set_mram_mux(target_rank, ci_mask, (!dir) ? 0x0: 0xFF);
 
-//     return status;
-// }
+    return status;
+}
 
 __API_SYMBOL__ dpu_error_t
 OFIS_set_mux_ig(struct dpu_set_t rank, uint8_t ig_id, bool dir){

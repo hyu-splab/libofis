@@ -1272,3 +1272,47 @@ OFIS_prepare_xfer_dpu(struct dpu_set_t dpu, uint64_t bitmap, void* buffer){
 
     return result;
 }
+
+
+__API_SYMBOL__ dpu_error_t
+OFIS_push_xfer(struct dpu_set_t dpu_set, 
+    dpu_xfer_t xfer, 
+    const char *symbol_name,
+    uint32_t symbol_offset,
+    size_t length)
+{
+    dpu_error_t status = DPU_OK;
+    struct dpu_program_t *program;
+    struct dpu_symbol_t symbol;
+    if ((status = dpu_get_common_program(&dpu_set, &program)) != DPU_OK) {
+        return status;
+    }
+
+    if ((status = dpu_get_symbol(program, symbol_name, &symbol)) != DPU_OK) {
+        return status;
+    }
+
+    dpu_mem_max_addr_t address = symbol.address + symbol_offset;
+    address &= ~(0x08000000u);
+
+    struct dpu_rank_t *rank = dpu_set.list.ranks[0];
+    struct dpu_transfer_matrix matrix;
+    dpu_transfer_matrix_clear_all(rank, &matrix);
+    dpu_transfer_matrix_copy(&matrix, dpu_get_transfer_matrix(rank));
+    dpu_transfer_matrix_clear_all(rank, dpu_get_transfer_matrix(rank));
+
+    matrix.offset = address;
+    matrix.size = length;
+    verify_mram_access_offset_and_size(matrix.offset, matrix.size, rank);
+
+    dpu_rank_handler_t handler = rank->handler_context->handler;
+    if(xfer == DPU_XFER_TO_DPU){
+        if(handler->copy_to_rank(rank, &matrix) != DPU_RANK_SUCCESS)
+            status = DPU_ERR_DRIVER;
+    }else{
+        if(handler->copy_from_rank(rank, &matrix) != DPU_RANK_SUCCESS)
+            status = DPU_ERR_DRIVER;
+    }
+
+    return status;
+}
