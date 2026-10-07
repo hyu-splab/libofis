@@ -124,6 +124,11 @@ OFIS_dpu_launch(struct dpu_set_t dpu_set){
         struct dpu_rank_t* rank = dpu_set.list.ranks[i];
         ufi_select_all(rank, &ci_mask);
         ufi_set_mram_mux(rank, ci_mask, 0x0);
+
+        uint8_t nr_cis = rank->description->hw.topology.nr_of_control_interfaces;
+        for(uint8_t ci = 0; ci < nr_cis; ++ci)
+            rank->runtime.control_interface.slice_info[ci].host_mux_mram_state = 0;
+
         ufi_thread_boot(rank, ci_mask, 0, NULL);
     }
 
@@ -163,6 +168,9 @@ OFIS_set_mux_dpu(struct dpu_set_t rank, uint8_t dpu_id, bool dir){
     ufi_select_dpu(target_rank, &ci_mask, dpu_idx);
     ufi_set_mram_mux(target_rank, ci_mask, (!dir) ? 0x0: 0xFF);
 
+    if(dir) target_rank->runtime.control_interface.slice_info[ci_idx].host_mux_mram_state |= (1u << dpu_idx);
+    else target_rank->runtime.control_interface.slice_info[ci_idx].host_mux_mram_state &= ~(1u << dpu_idx);
+
     return status;
 }
 
@@ -176,6 +184,12 @@ OFIS_set_mux_ig(struct dpu_set_t rank, uint8_t ig_id, bool dir){
     ufi_select_dpu(target_rank, &ci_mask, ig_id);
     ufi_set_mram_mux(target_rank, ci_mask, (!dir) ? 0x0: 0xFF);
 
+    uint8_t nr_cis = target_rank->description->hw.topology.nr_of_control_interfaces;
+    for(uint8_t ci = 0; ci < nr_cis; ++ci){
+        if(dir) target_rank->runtime.control_interface.slice_info[ci].host_mux_mram_state |= (1u << ig_id);
+        else target_rank->runtime.control_interface.slice_info[ci].host_mux_mram_state &= ~(1u << ig_id);
+    }
+
     return status;
 }
 
@@ -188,6 +202,11 @@ OFIS_set_mux_rank(struct dpu_set_t rank, bool dir){
     struct dpu_rank_t* target_rank = rank.list.ranks[0];
     ufi_select_all(target_rank, &ci_mask);
     ufi_set_mram_mux(target_rank, ci_mask, (!dir) ? 0x0: 0xFF);
-    
+
+    uint8_t nr_cis = target_rank->description->hw.topology.nr_of_control_interfaces;
+    uint8_t nr_dpus_per_ci = target_rank->description->hw.topology.nr_of_dpus_per_control_interface;
+    for(uint8_t ci = 0; ci < nr_cis; ++ci)
+        target_rank->runtime.control_interface.slice_info[ci].host_mux_mram_state = dir ? (1u << nr_dpus_per_ci) - 1 : 0;
+
     return status;
 }
